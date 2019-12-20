@@ -22,7 +22,7 @@ contract('Marketplace', ([deployer, seller, buyer]) => {
 
     it('has a name', async () => {
       const name = await marketplace.name()
-      assert.equal(name, 'Dapp University Marketplace')
+      assert.equal(name, 'My Business')
     })
   })
 
@@ -30,7 +30,7 @@ contract('Marketplace', ([deployer, seller, buyer]) => {
     let result, productCount
 
     before(async () => {
-      result = await marketplace.createProduct('iPhone X', web3.utils.toWei('1', 'Ether'), { from: seller })
+      result = await marketplace.createProduct('Product1', web3.utils.toWei('1', 'Ether'), { from: seller })
       productCount = await marketplace.productCount()
     })
 
@@ -39,7 +39,7 @@ contract('Marketplace', ([deployer, seller, buyer]) => {
       assert.equal(productCount, 1)
       const event = result.logs[0].args
       assert.equal(event.id.toNumber(), productCount.toNumber(), 'id is correct')
-      assert.equal(event.name, 'iPhone X', 'name is correct')
+      assert.equal(event.name, 'Product1', 'name is correct')
       assert.equal(event.price, '1000000000000000000', 'price is correct')
       assert.equal(event.owner, seller, 'owner is correct')
       assert.equal(event.purchased, false, 'purchased is correct')
@@ -47,13 +47,13 @@ contract('Marketplace', ([deployer, seller, buyer]) => {
       // FAILURE: Product must have a name
       await await marketplace.createProduct('', web3.utils.toWei('1', 'Ether'), { from: seller }).should.be.rejected;
       // FAILURE: Product must have a price
-      await await marketplace.createProduct('iPhone X', 0, { from: seller }).should.be.rejected;
+      await await marketplace.createProduct('Product1', 0, { from: seller }).should.be.rejected;
     })
 
     it('lists products', async () => {
       const product = await marketplace.products(productCount)
       assert.equal(product.id.toNumber(), productCount.toNumber(), 'id is correct')
-      assert.equal(product.name, 'iPhone X', 'name is correct')
+      assert.equal(product.name, 'Product1', 'name is correct')
       assert.equal(product.price, '1000000000000000000', 'price is correct')
       assert.equal(product.owner, seller, 'owner is correct')
       assert.equal(product.purchased, false, 'purchased is correct')
@@ -71,7 +71,7 @@ contract('Marketplace', ([deployer, seller, buyer]) => {
       // Check logs
       const event = result.logs[0].args
       assert.equal(event.id.toNumber(), productCount.toNumber(), 'id is correct')
-      assert.equal(event.name, 'iPhone X', 'name is correct')
+      assert.equal(event.name, 'Product1', 'name is correct')
       assert.equal(event.price, '1000000000000000000', 'price is correct')
       assert.equal(event.owner, buyer, 'owner is correct')
       assert.equal(event.purchased, true, 'purchased is correct')
@@ -98,6 +98,27 @@ contract('Marketplace', ([deployer, seller, buyer]) => {
       // FAILURE: Buyer tries to buy again, i.e., buyer can't be the seller
       await marketplace.purchaseProduct(productCount, { from: buyer, value: web3.utils.toWei('1', 'Ether') }).should.be.rejected;
     })
+  })
+  describe('courier', async () => {
+    let result1, result2, orderCount, shipmentCount
 
+    before(async () => {
+      result1 = await marketplace.orderProduct(1, { from: buyer, value: web3.utils.toWei('1', 'Ether') })
+      orderCount = await marketplace.orderCount()
+      result2 = await marketplace.shipProduct(1, { from: deployer })
+      shipmentCount = await marketplace.shipmentCount()
+    })
+
+    it('order successful', async () => {
+      console.log(orderCount)
+      assert.equal(orderCount, 1)
+      console.log(result1.logs[0].args)
+    })
+
+    it('shipment successful', async () => {
+      console.log(shipmentCount)
+      assert.equal(shipmentCount, 1)
+      console.log(result2.logs[0].args)
+    })
   })
 })

@@ -3,7 +3,11 @@ pragma solidity ^0.5.0;
 contract Marketplace {
     string public name;
     uint public productCount = 0;
+    uint public orderCount = 0;
+    uint public shipmentCount = 0;
     mapping(uint => Product) public products;
+    mapping(uint => Order) public orders;
+    mapping(uint => Shipment) public shipments;
 
     struct Product {
         uint id;
@@ -11,6 +15,25 @@ contract Marketplace {
         uint price;
         address payable owner;
         bool purchased;
+    }
+    struct Shipment {
+        uint id;
+        uint productId;
+        string productName;
+        uint price;
+        address payable courier;
+        address payable owner;
+        bool payed;
+    }
+    struct Order {
+        uint id;
+        uint productId;
+        string productName;
+        uint price;
+        address payable buyer;
+        address payable owner;
+        address payable courier;
+        bool needsShipment;
     }
 
     event ProductCreated(
@@ -29,8 +52,38 @@ contract Marketplace {
         bool purchased
     );
 
+    event ProductOrdered(
+        uint id,
+        uint productId,
+        string productName,
+        uint price,
+        address payable buyer,
+        address payable owner,
+        address payable courier,
+        bool needsShipment
+    );
+    event ProductShipped(
+        uint id,
+        uint productId,
+        string productName,
+        uint price,
+        address payable courier,
+        address payable owner,
+        bool payed
+    );
+    event courierPayed(
+        uint id,
+        uint productId,
+        string productName,
+        uint price,
+        address payable courier,
+        address payable owner,
+        bool payed
+    );
+
+
     constructor() public {
-        name = "Dapp University Marketplace";
+        name = "My Business";
     }
 
     function createProduct(string memory _name, uint _price) public {
@@ -51,13 +104,10 @@ contract Marketplace {
         Product memory _product = products[_id];
         // Fetch the owner
         address payable _seller = _product.owner;
-        // Make sure the product has a valid id
+        // Check validity
         require(_product.id > 0 && _product.id <= productCount);
-        // Require that there is enough Ether in the transaction
         require(msg.value >= _product.price);
-        // Require that the product has not been purchased already
         require(!_product.purchased);
-        // Require that the buyer is not the seller
         require(_seller != msg.sender);
         // Transfer ownership to the buyer
         _product.owner = msg.sender;
@@ -69,5 +119,51 @@ contract Marketplace {
         address(_seller).transfer(msg.value);
         // Trigger an event
         emit ProductPurchased(productCount, _product.name, _product.price, msg.sender, true);
+    }
+
+    function orderProduct(uint _id) public payable{
+        orderCount ++;
+        Product memory _product = products[_id];
+        address payable _seller = _product.owner;
+        uint _price = _product.price / 25;
+        _product.purchased = true;
+        products[_id] = _product;
+        // Create order
+        orders[orderCount] = Order(orderCount, _id, _product.name, _price, msg.sender, _seller, _seller, true);
+        // Pay seller
+        address(_seller).transfer(msg.value);
+        // Trigger an event
+        emit ProductOrdered (orderCount, _id, _product.name, _price, msg.sender, _seller, _seller, true);
+    }
+
+    function shipProduct(uint _id) public {
+        shipmentCount ++;
+        Order memory _order = orders[_id];
+        
+        address payable _courier = msg.sender;
+
+        Product memory _product = products[_order.productId];
+        _product.owner = _order.buyer;
+        products[_order.productId] = _product;
+
+        _order.needsShipment = false;
+        _order.courier = _courier;
+        orders[_id] = _order;
+
+        shipments[shipmentCount] = Shipment(shipmentCount, _product.id, _product.name, _order.price, _courier, _order.owner, false);
+
+        emit ProductShipped (shipmentCount, _product.id, _product.name, _order.price, _courier, _order.owner, false);
+    }
+
+    function payCourier(uint _id) public payable {
+        Shipment memory _shipment = shipments[_id];
+        address payable _courier = _shipment.courier;
+
+        address(_courier).transfer(_shipment.price);
+
+        _shipment.payed = true;
+        shipments[_id] = _shipment;
+
+        emit courierPayed (shipmentCount, _shipment.productId, _shipment.productName, _shipment.price, _courier, msg.sender, true);
     }
 }
